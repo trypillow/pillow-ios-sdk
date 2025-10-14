@@ -1,0 +1,76 @@
+name: Validate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-podspec:
+    name: Lint Podspec
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install CocoaPods
+        run: gem install cocoapods
+
+      - name: Lint Podspec
+        run: pod lib lint PillowSDK.podspec --allow-warnings
+
+  check-version-sync:
+    name: Check Version Synchronization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract versions
+        id: versions
+        run: |
+          # Get version from PillowSDK.swift
+          SDK_VERSION=$(grep -E 'public let version = "([0-9]+\.[0-9]+\.[0-9]+)"' Sources/PillowSDK/PillowSDK.swift | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_OUTPUT
+          
+          # Get version from podspec
+          PODSPEC_VERSION=$(grep -E "s.version.*=.*'([0-9]+\.[0-9]+\.[0-9]+)'" PillowSDK.podspec | sed -E "s/.*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/")
+          echo "PODSPEC_VERSION=$PODSPEC_VERSION" >> $GITHUB_OUTPUT
+          
+          # Get latest changelog version (optional - skip if file doesn't exist)
+          if [ -f "CHANGELOG.md" ]; then
+            CHANGELOG_VERSION=$(grep -E "^## \[[0-9]+\.[0-9]+\.[0-9]+\]" CHANGELOG.md | head -1 | sed -E 's/.*\[([0-9]+\.[0-9]+\.[0-9]+)\].*/\1/')
+            echo "CHANGELOG_VERSION=$CHANGELOG_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGELOG_VERSION=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compare versions
+        run: |
+          SDK_VERSION="${{ steps.versions.outputs.SDK_VERSION }}"
+          PODSPEC_VERSION="${{ steps.versions.outputs.PODSPEC_VERSION }}"
+          CHANGELOG_VERSION="${{ steps.versions.outputs.CHANGELOG_VERSION }}"
+          
+          echo "SDK Version: $SDK_VERSION"
+          echo "Podspec Version: $PODSPEC_VERSION"
+          if [ -n "$CHANGELOG_VERSION" ]; then
+            echo "Changelog Version: $CHANGELOG_VERSION"
+          else
+            echo "Changelog: Not present (optional)"
+          fi
+          
+          if [ "$SDK_VERSION" != "$PODSPEC_VERSION" ]; then
+            echo "❌ Version mismatch: PillowSDK.swift ($SDK_VERSION) vs PillowSDK.podspec ($PODSPEC_VERSION)"
+            exit 1
+          fi
+          
+          if [ -n "$CHANGELOG_VERSION" ] && [ "$SDK_VERSION" != "$CHANGELOG_VERSION" ]; then
+            echo "❌ Version mismatch: PillowSDK.swift ($SDK_VERSION) vs CHANGELOG.md ($CHANGELOG_VERSION)"
+            exit 1
+          fi
+          
+          echo "✅ All versions are synchronized: $SDK_VERSION"
+
