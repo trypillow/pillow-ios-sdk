@@ -14,6 +14,7 @@ internal struct PillowWebView: UIViewRepresentable {
     let url: URL
     let userAgent: String?
     let keyboardHeight: CGFloat
+    @Binding var webView: WKWebView?
 
     func makeUIView(context: Context) -> WKWebView {
         context.coordinator.lastKeyboardHeight = keyboardHeight
@@ -53,6 +54,14 @@ internal struct PillowWebView: UIViewRepresentable {
         // Allow interactive keyboard dismissal
         webView.scrollView.keyboardDismissMode = .interactive
 
+        // Observe and prevent any contentOffset changes (prevents auto-scroll on focus)
+        webView.scrollView.addObserver(
+            context.coordinator,
+            forKeyPath: "contentOffset",
+            options: [.new],
+            context: nil
+        )
+
         // Set custom user agent if provided
         if let userAgent = userAgent {
             webView.customUserAgent = userAgent
@@ -60,6 +69,11 @@ internal struct PillowWebView: UIViewRepresentable {
 
         // Store webView reference in coordinator for keyboard height updates
         context.coordinator.webView = webView
+
+        // Pass webView reference back to parent
+        DispatchQueue.main.async {
+            self.webView = webView
+        }
 
         // Load the URL
         let request = URLRequest(url: url)
@@ -88,9 +102,55 @@ internal struct PillowWebView: UIViewRepresentable {
         func updateKeyboardHeight(_ height: CGFloat) {
             guard let webView = webView else { return }
 
-            // Simple: just set the CSS variable, let CSS handle everything
-            let script = "document.documentElement.style.setProperty('--keyboard-height', '\(height)px');"
-            webView.evaluateJavaScript(script, completionHandler: nil)
+            // Inject keyboard height and dispatch event to webapp
+            let transformValue = -height // Negative to move up
+            let script = """
+            document.documentElement.style.setProperty('--keyboard-height', '\(height)px');
+            document.documentElement.style.setProperty('--keyboard-transform', '\(transformValue)px');
+            console.log('[PillowSDK] Set keyboard height to \(height)px, transform to \(transformValue)px');
+
+            // Dispatch keyboard change event to webapp so it can handle layout/scrolling
+            (function() {
+                const keyboardEvent = new MessageEvent('message', {
+                    data: {
+                        type: 'pillow:keyboardHeightChanged',
+                        data: { height: \(height) }
+                    },
+                    origin: window.location.origin
+                });
+                window.dispatchEvent(keyboardEvent);
+                console.log('[PillowSDK] Dispatched pillow:keyboardHeightChanged event with height:', \(height));
+            })();
+            """
+
+            PillowLogger.debug("Injecting keyboard height: \(height)px, transform: \(transformValue)px")
+
+            webView.evaluateJavaScript(script) { _, error in
+                if let error = error {
+                    PillowLogger.error("Failed to execute keyboard script: \(error.localizedDescription)")
+                } else {
+                    PillowLogger.debug("Keyboard script executed successfully")
+                }
+            }
+        }
+
+        // Observe contentOffset changes to prevent auto-scroll
+        override func observeValue(
+            forKeyPath keyPath: String?,
+            of object: Any?,
+            change: [NSKeyValueChangeKey: Any]?,
+            context: UnsafeMutableRawPointer?
+        ) {
+            if keyPath == "contentOffset", let scrollView = object as? UIScrollView {
+                // Force scroll position to stay at 0,0
+                if scrollView.contentOffset.y != 0 || scrollView.contentOffset.x != 0 {
+                    let offset = scrollView.contentOffset
+                    PillowLogger.debug(
+                        "Preventing auto-scroll: resetting contentOffset from \(offset) to (0,0)"
+                    )
+                    scrollView.contentOffset = .zero
+                }
+            }
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -105,6 +165,11 @@ internal struct PillowWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             PillowLogger.error("WebView failed to load: \(error.localizedDescription)")
+        }
+
+        deinit {
+            // Clean up observer
+            webView?.scrollView.removeObserver(self, forKeyPath: "contentOffset")
         }
     }
 }

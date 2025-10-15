@@ -8,6 +8,7 @@
 #if os(iOS)
 import SwiftUI
 import Combine
+import WebKit
 
 /// Modal view controller for the Pillow chat interface
 internal struct PillowWebViewController: View {
@@ -15,16 +16,53 @@ internal struct PillowWebViewController: View {
     let userAgent: String?
 
     @State private var keyboardHeight: CGFloat = 0
+    @State private var webView: WKWebView?
 
     var body: some View {
-        PillowWebView(url: url, userAgent: userAgent, keyboardHeight: keyboardHeight)
-            .ignoresSafeArea(.all, edges: [.bottom])
-            .onReceive(Publishers.keyboardHeight) { height in
-                PillowLogger.debug("Keyboard height changed to \(height)")
-                withAnimation(.easeOut(duration: 0.25)) {
-                    self.keyboardHeight = height
+        ZStack(alignment: .top) {
+            PillowWebView(url: url, userAgent: userAgent, keyboardHeight: keyboardHeight, webView: $webView)
+                .ignoresSafeArea(.all, edges: [.bottom])
+                .onReceive(Publishers.keyboardHeight) { height in
+                    PillowLogger.debug("Keyboard height changed to \(height)")
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        self.keyboardHeight = height
+                    }
+                    
+                    // Inject transform value for GPU-accelerated positioning
+                    if let webView = webView {
+                        let transformValue = -height // Negative to move up
+                        let script = """
+                        document.documentElement.style.setProperty('--keyboard-transform', '\(transformValue)px');
+                        console.log('[PillowSDK] Keyboard transform set to \(transformValue)px');
+                        """
+                        webView.evaluateJavaScript(script) { _, error in
+                            if let error = error {
+                                PillowLogger.error("Failed to inject keyboard transform: \(error)")
+                            }
+                        }
+                    }
                 }
+
+            // Custom drag indicator that's always visible
+            VStack(spacing: 0) {
+                DragIndicator()
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                Spacer()
             }
+            .allowsHitTesting(false) // Let touches pass through to webview
+        }
+        .presentationDragIndicator(.hidden) // Hide native indicator since we have custom one
+    }
+}
+
+/// Custom drag indicator bar
+private struct DragIndicator: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(Color(UIColor.systemGray4))
+            .frame(width: 36, height: 5)
     }
 }
 

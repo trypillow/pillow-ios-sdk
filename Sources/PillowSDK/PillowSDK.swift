@@ -19,7 +19,7 @@ public class PillowSDK {
     public static let shared = PillowSDK()
 
     /// SDK version
-    public let version = "1.0.0"
+    public let version = "1.0.1"
 
     /// The configured Pillow chat URL
     private var pillowURL: URL?
@@ -142,7 +142,7 @@ public class PillowSDK {
         // Configure sheet presentation (always, in case it was reset)
         if let sheet = hostingController?.sheetPresentationController {
             sheet.detents = [.large()]
-            sheet.prefersGrabberVisible = true
+            sheet.prefersGrabberVisible = false  // Using custom drag indicator
             sheet.prefersEdgeAttachedInCompactHeight = true
             sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = true
         }
@@ -150,7 +150,7 @@ public class PillowSDK {
         guard let controller = hostingController else {
             throw PillowSDKError.notConfigured
         }
-        
+
         // Set up dismissal detection
         controller.presentationController?.delegate = dismissalDelegate
         dismissalDelegate.onDismiss = { [weak self] in
