@@ -19,7 +19,7 @@ public class PillowSDK {
     public static let shared = PillowSDK()
 
     /// SDK version
-    public let version = "1.0.1"
+    public let version = "1.0.2"
 
     /// The configured Pillow chat URL
     private var pillowURL: URL?
