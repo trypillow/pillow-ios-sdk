@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'PillowSDK'
-  s.version          = '1.0.0'
+  s.version          = '1.0.1'
   s.summary          = 'Pillow iOS SDK - Native iOS integration for Pillow chat services'
   s.description      = <<-DESC
     The Pillow iOS SDK provides a native iOS interface for integrating Pillow chat services

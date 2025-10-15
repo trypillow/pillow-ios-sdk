@@ -33,7 +33,7 @@ Or in Xcode:
 Add the following to your `Podfile`:
 
 ```ruby
-pod 'PillowSDK', '~> 1.0.0'
+pod 'PillowSDK', '~> 1.0.1'
 ```
 
 Then run:
