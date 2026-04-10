@@ -22,13 +22,13 @@ In Xcode, go to **File > Add Package Dependencies** and enter the repository URL
 https://github.com/trypillow/pillow-ios-sdk.git
 ```
 
-Select version `0.1.1` or later, then add `PillowSDK` to your target.
+Select version `0.1.2` or later, then add `PillowSDK` to your target.
 
 Or in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trypillow/pillow-ios-sdk.git", from: "0.1.1")
+    .package(url: "https://github.com/trypillow/pillow-ios-sdk.git", from: "0.1.2")
 ]
 ```
 

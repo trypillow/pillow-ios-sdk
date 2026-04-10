@@ -4,4 +4,10 @@ All notable changes to `pillow-ios-sdk` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-10
+
+- Fix study presenter cleanup to prevent retain cycles and release web view resources on dismiss.
+
+## [0.1.1] - 2026-04-10
+
 - Initial iOS distribution scaffold for the new mobile SDK.
