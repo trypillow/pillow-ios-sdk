@@ -1,0 +1,4 @@
+import PillowSDKCore
+
+public typealias PillowStudy = PillowSDKCore.PillowStudy
+public typealias PillowStudyPresentationOptions = PillowSDKCore.PillowStudyPresentationOptions

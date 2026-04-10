@@ -1,0 +1,35 @@
+name: Validate Pillow Mobile iOS SDK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Package.swift syntax
+        run: swift package dump-package
+
+      - name: Validate repo structure
+        run: |
+          missing=()
+          for f in Package.swift README.md LICENSE Sources/PillowSDK/Exports.swift Sources/PillowSDK/PillowSDK.swift Sources/PillowSDK/PillowStudyDelegate.swift; do
+            [[ -f "$f" ]] || missing+=("$f")
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing required files: ${missing[*]}" >&2
+            exit 1
+          fi
+          if [[ -e Sources/PillowSDKLinker ]]; then
+            echo "Unexpected legacy linker shim directory: Sources/PillowSDKLinker" >&2
+            exit 1
+          fi
+          echo "All required files present."
