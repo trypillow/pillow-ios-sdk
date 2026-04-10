@@ -9,19 +9,26 @@ Shared Kotlin Multiplatform source and architecture are published separately in 
 - iOS 16+
 - Xcode 15+
 
+## Prerequisites
+
+- A **publishable API key** from the [Developer section](https://app.trypillow.ai) of your dashboard
+- A **study** set to live mode — copy its ID from the **Integration** tab
+
 ## Installation
 
-Add the package in Xcode:
+In Xcode, go to **File > Add Package Dependencies** and enter the repository URL:
 
 ```text
 https://github.com/trypillow/pillow-ios-sdk.git
 ```
 
+Select version `0.1.1` or later, then add `PillowSDK` to your target.
+
 Or in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trypillow/pillow-ios-sdk.git", from: "0.1.0")
+    .package(url: "https://github.com/trypillow/pillow-ios-sdk.git", from: "0.1.1")
 ]
 ```
 
@@ -35,31 +42,150 @@ You only need to add the Swift Package and import `PillowSDK`. Do not copy the f
 
 ## Quick start
 
+### 1. Initialize the SDK
+
+Call `initialize()` once at app startup — in your `App` `init()` (SwiftUI) or `AppDelegate` (UIKit). Do not call it repeatedly from view code.
+
+**SwiftUI:**
+
+```swift
+import SwiftUI
+import PillowSDK
+
+@main
+struct MyApp: App {
+    init() {
+        PillowSDK.shared.initialize(publishableKey: "pk_live_...")
+    }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
+```
+
+**UIKit:**
+
 ```swift
 import PillowSDK
 
-PillowSDK.shared.initialize(publishableKey: "pk_live_...")
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        PillowSDK.shared.initialize(publishableKey: "pk_live_...")
+        return true
+    }
+}
+```
+
+### 2. Identify the user
+
+Call after login or when you know who the user is. You can also set properties to segment users in the dashboard.
+
+```swift
 PillowSDK.shared.setExternalId(externalId: "user_123")
 PillowSDK.shared.setUserProperty(key: "plan", stringValue: "pro")
-PillowSDK.shared.present(study: PillowStudy(id: "demo"))
-PillowSDK.shared.present(
-    study: PillowStudy(id: "demo"),
-    options: PillowStudyPresentationOptions(
-        forceFreshSession: false,
-        skipIfAlreadyExposed: true
-    )
-)
+```
+
+### 3. Present a study
+
+```swift
+PillowSDK.shared.present(study: PillowStudy(id: "your-study-id-here"))
+```
+
+The study opens as a modal overlay. The user can complete the conversation and dismiss it when done.
+
+### 4. Enable microphone (optional)
+
+If your study uses voice input, add the microphone usage description to your `Info.plist`:
+
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>This app uses the microphone for voice-based research conversations.</string>
+```
+
+If this key is missing, the microphone button will not appear in the study.
+
+## Full example (SwiftUI)
+
+```swift
+import SwiftUI
+import PillowSDK
+
+@main
+struct MyApp: App {
+    init() {
+        PillowSDK.shared.initialize(publishableKey: "pk_live_...")
+        PillowSDK.shared.setExternalId(externalId: "user_123")
+        PillowSDK.shared.setUserProperty(key: "plan", stringValue: "pro")
+    }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
+
+struct ContentView: View {
+    @State private var coordinator: StudyCoordinator?
+
+    var body: some View {
+        Button("Start feedback") {
+            let coord = StudyCoordinator()
+            coordinator = coord
+            PillowSDK.shared.present(
+                study: PillowStudy(id: "your-study-id-here"),
+                options: PillowStudyPresentationOptions(skipIfAlreadyExposed: true),
+                delegate: coord
+            )
+        }
+    }
+}
+
+private final class StudyCoordinator: PillowStudyDelegate {
+    func studyDidPresent(_ study: PillowStudy) {
+        print("Study presented")
+    }
+    func studyDidFinish(_ study: PillowStudy) {
+        print("Study finished")
+    }
+    func studyDidFailToLoad(_ study: PillowStudy, error: Error) {
+        print("Study failed: \(error.localizedDescription)")
+    }
+}
+```
+
+In SwiftUI, retain the coordinator in `@State` so it stays alive for the duration of the study. The delegate is held weakly.
+
+## Full example (UIKit)
+
+```swift
+import UIKit
+import PillowSDK
+
+class ViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        PillowSDK.shared.initialize(publishableKey: "pk_live_...")
+        PillowSDK.shared.setExternalId(externalId: "user_123")
+    }
+
+    @IBAction func startStudy() {
+        PillowSDK.shared.present(
+            study: PillowStudy(id: "your-study-id-here")
+        )
+    }
+}
 ```
 
 ## API reference
 
 ### `initialize(publishableKey:)`
 
-Starts the SDK. Call once during app startup.
+Starts the SDK. Call once during app startup — subsequent calls are ignored.
 
 ```swift
-import PillowSDK
-
 PillowSDK.shared.initialize(publishableKey: "pk_live_...")
 ```
 
@@ -100,17 +226,7 @@ PillowSDK.shared.clearAllProperties()
 
 ### `present(study:options:delegate:)`
 
-Presents a Pillow study. Resumes an in-progress session if one exists for the same study ID unless you override that behavior in `options`. Pass an optional `PillowStudyDelegate` to receive lifecycle callbacks. The delegate is held weakly, so keep your own strong reference if you need callbacks after the call returns.
-
-```swift
-// Fire and forget
-PillowSDK.shared.present(study: PillowStudy(id: "demo"))
-
-// With lifecycle delegate
-PillowSDK.shared.present(study: PillowStudy(id: "demo"), delegate: myDelegate)
-```
-
-In SwiftUI, the common pattern is to retain a small coordinator object in view state and pass that object as the delegate.
+Presents a Pillow study. Resumes an in-progress session if one exists for the same study ID unless you override that behavior in `options`. Pass an optional `PillowStudyDelegate` to receive lifecycle callbacks.
 
 ```swift
 PillowSDK.shared.present(
@@ -125,22 +241,20 @@ PillowSDK.shared.present(
 
 Use `forceFreshSession: true` to always start a new session.
 
-Use `skipIfAlreadyExposed: true` to ask the backend to no-op when the current SDK user was already exposed to the same study.
+Use `skipIfAlreadyExposed: true` to only show the study once per user.
 
 ### `PillowStudyDelegate`
 
-A native Swift protocol with three lifecycle methods. All have default no-op implementations — implement only the ones you need.
+A native Swift protocol with lifecycle methods. All have default no-op implementations — implement only the ones you need.
 
 | Method | Description |
 |--------|-------------|
 | `studyDidPresent(_:)` | The study modal appeared on screen |
 | `studyDidSkip(_:)` | The study was intentionally skipped and not presented |
 | `studyDidFinish(_:)` | The user finished or dismissed the study |
-| `studyDidFailToLoad(_:error:)` | The study could not be loaded or presented. Access `error.localizedDescription` for the cause |
+| `studyDidFailToLoad(_:error:)` | The study could not be loaded or presented |
 
-All delegate methods are invoked on the main thread.
-
-The SDK intentionally keeps this API UIKit-style so it works in both UIKit and SwiftUI apps. In SwiftUI, prefer a retained coordinator or view model that conforms to `PillowStudyDelegate` instead of making the `View` itself the delegate.
+All delegate methods are invoked on the main thread. The delegate is held weakly — keep your own strong reference.
 
 ### `reset()`
 
@@ -150,22 +264,15 @@ Clears the user identity and all properties, then starts a fresh anonymous sessi
 PillowSDK.shared.reset()
 ```
 
-## Microphone permission
+## Documentation
 
-Pillow studies may use voice-based conversations that require microphone access. Add the following to your app's `Info.plist`:
-
-```xml
-<key>NSMicrophoneUsageDescription</key>
-<string>This app uses the microphone for voice-based research conversations.</string>
-```
-
-If this key is missing, the microphone button will not appear in the study. Customize the description string to match your app's tone.
-
-## Support
-
-Use GitHub Issues in this repository for SDK bugs, integration questions, and feature requests.
+Full integration guides are available at [docs.trypillow.ai/sdk](https://docs.trypillow.ai/sdk/overview).
 
 ## Source layout
 
 - `Package.swift` is the install surface for iOS apps and exposes the `PillowSDK` binary target.
 - Shared Kotlin source and architecture live in `https://github.com/trypillow/pillow-core-sdk`.
+
+## Support
+
+Use GitHub Issues in this repository for SDK bugs, integration questions, and feature requests.
