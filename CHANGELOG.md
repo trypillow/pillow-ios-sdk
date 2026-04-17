@@ -4,6 +4,10 @@ All notable changes to `pillow-ios-sdk` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-17
+
+- Add `presentLaunchStudyIfAvailable(delegate:)` and `onReadyToPresentStudy()` to support audience-targeted launch studies.
+
 ## [0.1.3] - 2026-04-10
 
 - Use ephemeral WKWebsiteDataStore and dedicated WKProcessPool so webview memory is fully released on dismiss.

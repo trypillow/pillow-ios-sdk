@@ -70,4 +70,21 @@ public final class PillowSDK {
         let adapter = _StudyDelegateAdapter(delegate)
         core.presentStudy(study: study, options: options, delegate: adapter)
     }
+
+    /// Presents the latest backend-provided launch study if one is currently available.
+    public func presentLaunchStudyIfAvailable(
+        delegate: (any PillowStudyDelegate)? = nil
+    ) {
+        guard let delegate else {
+            core.presentLaunchStudyIfAvailable(delegate: nil)
+            return
+        }
+        let adapter = _StudyDelegateAdapter(delegate)
+        core.presentLaunchStudyIfAvailable(delegate: adapter)
+    }
+
+    /// Tells the SDK the app UI is now in a safe state for automatic study presentation.
+    public func onReadyToPresentStudy() {
+        core.onReadyToPresentStudy()
+    }
 }

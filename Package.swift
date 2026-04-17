@@ -15,8 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "PillowSDKCore",
-            url: "https://github.com/trypillow/pillow-ios-sdk/releases/download/v0.1.3/PillowSDKCore.xcframework.zip",
-            checksum: "d4cac008ea946f36e8925fa69d8bf51dac1525f3c15fc3bdcc48f3ab5765ab20"
+            url: "https://github.com/trypillow/pillow-ios-sdk/releases/download/v0.1.4/PillowSDKCore.xcframework.zip",
+            checksum: "b2027e697442163240eba908496e0b7ae52aaf08cfa985f47de1b308305258fb"
         ),
         .target(
             name: "PillowSDK",

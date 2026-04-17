@@ -97,6 +97,16 @@ PillowSDK.shared.present(study: PillowStudy(id: "your-study-id-here"))
 
 The study opens as a modal overlay. The user can complete the conversation and dismiss it when done.
 
+Once your app UI is ready to let Pillow present over it, call:
+
+```swift
+PillowSDK.shared.onReadyToPresentStudy()
+```
+
+After this is called for the current ready UI state, the SDK can automatically present pending backend-driven `launch_study` instructions while the app stays active and presentation-safe. Native mobile presentation stays the same; any `web_display` payload is forwarded to the hosted web experience only.
+
+If you need to force an immediate manual check, `PillowSDK.shared.presentLaunchStudyIfAvailable()` is still available.
+
 ### 4. Enable microphone (optional)
 
 If your study uses voice input, add the microphone usage description to your `Info.plist`:
@@ -123,7 +133,7 @@ struct MyApp: App {
     }
 
     var body: some Scene {
-        WindowGroup { ContentView() }
+        WindowGroup { ContentView().modifier(ReadyToPresentStudyModifier()) }
     }
 }
 
@@ -154,6 +164,28 @@ private final class StudyCoordinator: PillowStudyDelegate {
         print("Study failed: \(error.localizedDescription)")
     }
 }
+
+private struct ReadyToPresentStudyModifier: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.onChange(of: scenePhase) { _, newPhase in
+                notifySdkIfNeeded(for: newPhase)
+            }
+        } else {
+            content.onChange(of: scenePhase) { newPhase in
+                notifySdkIfNeeded(for: newPhase)
+            }
+        }
+    }
+
+    private func notifySdkIfNeeded(for phase: ScenePhase) {
+        if phase == .active {
+            PillowSDK.shared.onReadyToPresentStudy()
+        }
+    }
+}
 ```
 
 In SwiftUI, retain the coordinator in `@State` so it stays alive for the duration of the study. The delegate is held weakly.
@@ -169,6 +201,11 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         PillowSDK.shared.initialize(publishableKey: "pk_live_...")
         PillowSDK.shared.setExternalId(externalId: "user_123")
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        PillowSDK.shared.onReadyToPresentStudy()
     }
 
     @IBAction func startStudy() {
@@ -242,6 +279,26 @@ PillowSDK.shared.present(
 Use `forceFreshSession: true` to always start a new session.
 
 Use `skipIfAlreadyExposed: true` to only show the study once per user.
+
+### `onReadyToPresentStudy()`
+
+Tells the SDK the current app UI is ready for automatic study presentation. Call it whenever the app returns to a safe UI state where Pillow is allowed to present.
+
+```swift
+PillowSDK.shared.onReadyToPresentStudy()
+```
+
+### `presentLaunchStudyIfAvailable(delegate:)`
+
+Manually checks whether the backend returned a `launch_study` instruction for the current SDK user and presents it if available.
+
+```swift
+PillowSDK.shared.presentLaunchStudyIfAvailable()
+```
+
+The method checks asynchronously for a pending launch study instruction. If one is available, the study is presented and the delegate receives `studyDidPresent`. If the study was already shown, the delegate receives `studyDidSkip`. If no instruction is available, no delegate method is called.
+
+Any `launch_study.web_display` payload is passed through to the hosted web experience only. It does not change the native iOS modal presentation.
 
 ### `PillowStudyDelegate`
 
