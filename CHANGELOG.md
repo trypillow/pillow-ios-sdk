@@ -4,6 +4,10 @@ All notable changes to `pillow-ios-sdk` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-04-28
+
+- Documentation: update README install snippet to reference the current SDK version. No runtime changes.
+
 ## [0.1.5] - 2026-04-28
 
 - Fix installation_id rotating on every launch when the app was force-quit (Xcode "Stop", iOS jetsam, force-quit before NSUserDefaults flushes). The SDK now treats the local SQLite installation row as the source of truth and no longer relies on a separate sentinel.
